@@ -431,8 +431,15 @@ describe("sessões: conflito conhecido só converge com identidade e pós-condi�
     });
   });
 
-  it("sessão que informa engine=noweb diretamente também é compatível", async () => {
+  it("sessão que informa engine.engine=noweb também é compatível", async () => {
     const lower = (status = "STOPPED") => session(status, { engine: { engine: "noweb" } });
+    await receive([create(), read(lower()), start, read(lower("SCAN_QR_CODE"))], async (c) => {
+      await expect(c.startSession(name)).resolves.toMatchObject({ status: "SCAN_QR_CODE" });
+    });
+  });
+
+  it("sessão que informa engine=noweb como string de nível superior também é compatível", async () => {
+    const lower = (status = "STOPPED") => session(status, { engine: "noweb" });
     await receive([create(), read(lower()), start, read(lower("SCAN_QR_CODE"))], async (c) => {
       await expect(c.startSession(name)).resolves.toMatchObject({ status: "SCAN_QR_CODE" });
     });
