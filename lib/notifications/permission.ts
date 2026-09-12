@@ -34,6 +34,18 @@ export function getPermission(): NotificationPermissionState {
   return Notification.permission;
 }
 
+/**
+ * Snapshot determinístico usado pelo SSR e pela primeira hidratação.
+ *
+ * O terceiro argumento de `useSyncExternalStore` também é chamado no
+ * navegador durante a hidratação. Reutilizar `getPermission()` ali fazia o
+ * servidor renderizar `unsupported` e o cliente comparar com `granted` ou
+ * `denied`, mudando o HTML dos switches e produzindo React #418.
+ */
+export function getPermissionSnapshotDoServidor(): NotificationPermissionState {
+  return "unsupported";
+}
+
 export async function requestPermission(): Promise<NotificationPermissionState> {
   if (typeof Notification === "undefined") return "unsupported";
   const resultado = await Notification.requestPermission();

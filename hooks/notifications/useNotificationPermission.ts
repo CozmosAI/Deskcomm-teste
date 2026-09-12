@@ -7,6 +7,7 @@ import {
   areAlertsEnabled,
   assinarPermissao,
   getPermission,
+  getPermissionSnapshotDoServidor,
   requestPermission,
   setAlertsEnabled,
   type NotificationPermissionState,
@@ -60,7 +61,11 @@ export function useNotificationPermission(): {
    * primeiro PR a mudar o timing o bastante para perder a corrida ficou vermelho
    * sem ter quebrado nada.
    */
-  const permission = useSyncExternalStore(assinarPermissao, getPermission, getPermission);
+  const permission = useSyncExternalStore(
+    assinarPermissao,
+    getPermission,
+    getPermissionSnapshotDoServidor,
+  );
   const [enabled, setEnabledState] = useState(false);
 
   useEffect(() => {

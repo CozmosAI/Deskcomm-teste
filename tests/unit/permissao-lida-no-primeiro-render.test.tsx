@@ -99,21 +99,17 @@ describe("a permissão do navegador é lida no primeiro render", () => {
     ).toBe(true);
   });
 
-  it("⭐ com a notificação CONCEDIDA, ele já nasce habilitado", async () => {
+  it("⭐ na renderização do servidor, permissão CONCEDIDA no navegador ainda nasce desabilitada", async () => {
     comPermissaoDoNavegador("granted");
     const markup = await markupSemEfeitos();
-    // O outro sentido: um conserto que simplesmente desabilitasse sempre
-    // passaria no caso acima e falharia aqui. Guarda de um lado só vira defeito
-    // do outro — e foi exatamente assim que o detector quebrado desta suíte
-    // apareceu: os dois primeiros casos estavam verdes medindo a folha de
-    // estilo, e só este reprovou.
     expect(
-      pushDesabilitado(markup).some(Boolean),
-      "a permissão está concedida e o interruptor nasce desabilitado",
-    ).toBe(false);
+      pushDesabilitado(markup).every(Boolean),
+      "o snapshot SSR leu Notification.permission do navegador durante a hidratação; " +
+        "isso diverge do HTML do servidor e produz React #418",
+    ).toBe(true);
   });
 
-  it("⭐ VAPID ausente NÃO desabilita o Push — o conserto exagerado, barrado", async () => {
+  it("⭐ o snapshot cliente ainda lê granted — após hidratar, Push pode habilitar", async () => {
     /**
      * Esta asserção morava em `tests/e2e/notificacoes-diz-o-que-falta.spec.ts`
      * e não podia viver lá. MEDIDO no Chromium do Playwright:
@@ -144,11 +140,7 @@ describe("a permissão do navegador é lida no primeiro render", () => {
     ).toBe("");
 
     comPermissaoDoNavegador("granted");
-    const markup = await markupSemEfeitos();
-    expect(
-      pushDesabilitado(markup).some(Boolean),
-      "sem VAPID o Push nasceu desabilitado — é o conserto exagerado, que tira " +
-        "o aviso com a aba aberta junto",
-    ).toBe(false);
+    const { getPermission } = await import("@/lib/notifications/permission");
+    expect(getPermission()).toBe("granted");
   });
 });
