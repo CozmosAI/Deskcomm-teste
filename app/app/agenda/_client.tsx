@@ -39,6 +39,10 @@ const VISOES: Array<{ id: VisaoDaAgenda; rotulo: string }> = [
   { id: "mes", rotulo: "Mês" },
 ];
 
+const assinarHidratacao = () => () => {};
+const clienteHidratado = () => true;
+const servidorNaoHidratado = () => false;
+
 /**
  * A tela da Agenda.
  *
@@ -65,6 +69,7 @@ const VISOES: Array<{ id: VisaoDaAgenda; rotulo: string }> = [
  * imports sem querer.
  */
 export function AgendaClient({
+  agoraInicialIso,
   fusoDeApresentacao,
   googleConfigurado,
   contaConectada,
@@ -74,6 +79,7 @@ export function AgendaClient({
   tiposIniciais,
   agendamentosIniciais,
 }: {
+  agoraInicialIso: string;
   fusoDeApresentacao: string | null;
   googleConfigurado: boolean;
   contaConectada?: string | null;
@@ -95,6 +101,16 @@ export function AgendaClient({
 }) {
   const localeDaData = useLocaleDeData();
   const t = useT();
+  const hidratado = React.useSyncExternalStore(
+    assinarHidratacao,
+    clienteHidratado,
+    servidorNaoHidratado,
+  );
+  const [agora, setAgora] = React.useState(() => new Date(agoraInicialIso));
+  React.useEffect(() => {
+    const id = window.setInterval(() => setAgora(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   const [marcando, setMarcando] = React.useState(false);
   const [contactId,setContactId]=React.useState("");
   const [conversationId,setConversationId]=React.useState("");
@@ -135,7 +151,7 @@ export function AgendaClient({
   const tipo = tiposIniciais.find((t) => t.id === tipoId) ?? tiposIniciais[0] ?? null;
   const [visao, setVisao] = React.useState<VisaoDaAgenda>("semana");
   const [isolada, setIsolada] = React.useState<string | null>(null);
-  const [ancora, setAncora] = React.useState(() => new Date());
+  const [ancora, setAncora] = React.useState(() => new Date(agoraInicialIso));
 
   // AS PESSOAS SÃO REAIS: vêm de `/api/v1/team`, com a trilha de cor derivada do
   // `user_id`. Até esta linha o filtro por pessoa era invisível na tela do
@@ -391,7 +407,7 @@ export function AgendaClient({
             data-testid="periodo"
             className="truncate text-sm font-semibold first-letter:uppercase"
           >
-            {periodo}
+            {hidratado ? periodo : null}
           </span>
         </div>
 
@@ -559,8 +575,8 @@ export function AgendaClient({
             <div className="mt-4 lg:min-h-0 lg:flex-1">
               <PainelDeMarcacao
                 className="lg:h-full"
-                ancora={new Date()}
-                agora={new Date()}
+                ancora={agora}
+                agora={agora}
                 responsavel={
                   // O DONO DO TIPO, não o primeiro da lista. A tela dizia "com
                   // <primeira pessoa>" enquanto oferecia a jornada de outra —
@@ -759,7 +775,7 @@ export function AgendaClient({
       <HistoricoDaAgenda
         agendamentos={agendamentosAcionaveis}
         pessoas={pessoas}
-        agora={new Date()}
+        agora={agora}
         className="max-h-[320px]"
         // ⚠️ ESTAS DUAS PROPS FALTAVAM, e a ausência tinha cara de permissão.
         // `HistoricoDaAgenda` usa `disabled={!onRemarcar}`; sem elas os botões
@@ -810,10 +826,10 @@ export function AgendaClient({
           remarca. Toda a fiação (a consulta de horários da janela desenhada, a
           proposta de remarcação, o otimismo com volta atrás) mora em
           `AgendaInterativa`; aqui fica só o que esta tela já sabia. */}
-      <AgendaInterativa
+      {hidratado ? <AgendaInterativa
         visao={visao}
         ancora={ancora}
-        agora={new Date()}
+        agora={agora}
         pessoas={pessoas}
         agendamentos={agendamentosDaGrade}
         recorte={recorteDaGrade}
@@ -826,7 +842,13 @@ export function AgendaClient({
           setMarcando(true);
         }}
         className="min-h-0 flex-1"
-      />
+      /> : (
+        <div
+          data-testid="agenda-grade-carregando"
+          className="min-h-[360px] flex-1 animate-pulse rounded-lg border border-border bg-surface"
+          aria-hidden
+        />
+      )}
 
     </div>
   );

@@ -77,8 +77,12 @@ export default async function AgendaPage() {
    */
   const supabase = await createClient();
 
+  // Um único relógio para a consulta e a primeira hidratação. Criar outro no
+  // cliente faz Render (UTC) e navegador (fuso local) desenharem posições
+  // diferentes para a régua do agora.
+  const agora = new Date();
   // A semana da âncora, que é o que a grade abre por padrão.
-  const inicio = startOfWeek(new Date(), { weekStartsOn: 0 });
+  const inicio = startOfWeek(agora, { weekStartsOn: 0 });
   const fim = addDays(inicio, 7);
 
   // `.eq("organization_id", activeOrg.orgId)` em TODA consulta desta página, e
@@ -196,6 +200,7 @@ export default async function AgendaPage() {
 
   return (
     <AgendaClient
+      agoraInicialIso={agora.toISOString()}
       fusoDeApresentacao={fusoDeApresentacao}
       googleConfigurado={googleConfigurado}
       contaConectada={conexoes?.map(c => c.account_email).join(", ") || null}
