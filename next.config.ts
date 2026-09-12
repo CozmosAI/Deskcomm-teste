@@ -71,10 +71,11 @@ const nextConfig: NextConfig = {
           // usa getUserMedia({audio}); microphone=() bloquearia em TODA origem,
           // inclusive a própria — daria "microphone is not allowed in this document".
           // Câmera e geolocalização seguem bloqueadas (não usadas).
-          // notifications=(self): bandeja do SO quando a janela está minimizada.
+          // A Notifications API não possui diretiva Permissions-Policy nos
+          // navegadores atuais; declará-la gera warning sem conceder capacidade.
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(self), geolocation=(), notifications=(self)",
+            value: "camera=(), microphone=(self), geolocation=()",
           },
         ],
       },
