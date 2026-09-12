@@ -1,5 +1,5 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api/client";
 
@@ -24,6 +24,37 @@ export interface ChannelSession {
 }
 
 export type ConnectionHealth = "connected" | "connecting" | "down" | "none" | "unknown";
+
+export const CHANNEL_SESSIONS_QUERY_KEY = ["channel-sessions"] as const;
+
+type ChannelSessionsResponse = {
+  data: ChannelSession[];
+  meta?: { schema_outdated?: boolean };
+};
+
+/** Atualiza todos os consumidores da lista antes do refetch de confirmação. */
+export function removeChannelSessionFromCache(queryClient: QueryClient, id: string): void {
+  queryClient.setQueryData<ChannelSessionsResponse>(CHANNEL_SESSIONS_QUERY_KEY, (current) =>
+    current ? { ...current, data: current.data.filter((session) => session.id !== id) } : current,
+  );
+}
+
+/** Reflete no card/sidebar o estado já confirmado pela rota de reconexão. */
+export function updateChannelSessionInCache(
+  queryClient: QueryClient,
+  patch: Pick<ChannelSession, "id" | "status" | "status_reason">,
+): void {
+  queryClient.setQueryData<ChannelSessionsResponse>(CHANNEL_SESSIONS_QUERY_KEY, (current) =>
+    current
+      ? {
+          ...current,
+          data: current.data.map((session) =>
+            session.id === patch.id ? { ...session, ...patch } : session,
+          ),
+        }
+      : current,
+  );
+}
 
 /**
  * Como um canal se chama na tela. Existe porque nenhum dos três campos é
@@ -50,12 +81,9 @@ export function channelLabel(
  */
 export function useChannelSessions(opts?: { refetchInterval?: number; enabled?: boolean }) {
   const query = useQuery({
-    queryKey: ["channel-sessions"],
+    queryKey: CHANNEL_SESSIONS_QUERY_KEY,
     queryFn: async () => {
-      return apiClient.get<{
-        data: ChannelSession[];
-        meta?: { schema_outdated?: boolean };
-      }>("/api/v1/channel-sessions");
+      return apiClient.get<ChannelSessionsResponse>("/api/v1/channel-sessions");
     },
     staleTime: 15_000,
     refetchInterval: opts?.refetchInterval,

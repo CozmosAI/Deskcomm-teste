@@ -17,12 +17,13 @@ export interface WahaServerCapabilities {
 export function describeWahaServer(input: unknown): WahaServerCapabilities {
   const parsed = serverIdentity.safeParse(input);
   const facts = parsed.success ? parsed.data : {};
+  const engine = facts.engine?.trim().toUpperCase() ?? null;
   return {
     version: facts.version ?? null,
-    engine: facts.engine ?? null,
+    engine,
     tier: facts.tier ?? null,
     // Prova local qa-waha-core: somente duas SCAN_QR_CODE, sem pairing/envio.
     // Nenhuma combinação não medida recebe bloqueio por tier ou idade.
-    multipleSessions: facts.version === "2026.7.2" && facts.engine === "NOWEB" ? "supported" : "unknown",
+    multipleSessions: facts.version === "2026.7.2" && engine === "NOWEB" ? "supported" : "unknown",
   };
 }

@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { describeWahaServer } from "./waha-server";
 
 describe("capacidade medida do servidor, não inferência comercial", () => {
-  it("2026.7.2 CORE/NOWEB permite várias sessões antes do pairing", () => {
-    expect(describeWahaServer({ version: "2026.7.2", engine: "NOWEB", tier: "CORE", apiKey: "secret" })).toEqual({
+  it.each(["NOWEB", "noweb"])("2026.7.2 CORE/%s permite várias sessões antes do pairing", (engine) => {
+    expect(describeWahaServer({ version: "2026.7.2", engine, tier: "CORE", apiKey: "nao-retornar" })).toEqual({
       version: "2026.7.2", engine: "NOWEB", tier: "CORE", multipleSessions: "supported",
     });
   });

@@ -14,6 +14,9 @@ import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import {
   channelLabel,
+  CHANNEL_SESSIONS_QUERY_KEY,
+  removeChannelSessionFromCache,
+  updateChannelSessionInCache,
   useChannelSessions,
   type ChannelSession,
 } from "@/hooks/channels/useChannelSessions";
@@ -126,7 +129,7 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
   const pacingItems = usePacingKnobs().data?.items ?? [];
 
   const invalidate = useCallback(
-    () => qc.invalidateQueries({ queryKey: ["channel-sessions"] }),
+    () => qc.invalidateQueries({ queryKey: CHANNEL_SESSIONS_QUERY_KEY }),
     [qc],
   );
 
@@ -186,7 +189,14 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
     async (c: ChannelSession) => {
       setBusyId(c.id);
       try {
-        await apiClient.post(`/api/v1/channel-sessions/${c.id}/reconnect`, {});
+        const res = await apiClient.post<{
+          data: { id: string; status: string };
+        }>(`/api/v1/channel-sessions/${c.id}/reconnect`, {});
+        updateChannelSessionInCache(qc, {
+          id: res.data.id,
+          status: res.data.status,
+          status_reason: null,
+        });
         invalidate();
         setQr({ sessionId: c.id, title: `${t("Reconectar")} ${channelLabel(c, t)}` });
       } catch (err) {
@@ -195,27 +205,37 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
         setBusyId(null);
       }
     },
-    [invalidate, t],
+    [invalidate, qc, t],
   );
 
   const forcePair = useCallback(
     async (sessionId: string) => {
-      await apiClient.post(`/api/v1/channel-sessions/${sessionId}/reconnect`, { force: true });
+      const res = await apiClient.post<{ data: { id: string; status: string } }>(
+        `/api/v1/channel-sessions/${sessionId}/reconnect`,
+        { force: true },
+      );
+      updateChannelSessionInCache(qc, {
+        id: res.data.id,
+        status: res.data.status,
+        status_reason: null,
+      });
       invalidate();
     },
-    [invalidate],
+    [invalidate, qc],
   );
 
-  const handleDeleted = useCallback(() => {
+  const handleDeleted = useCallback((id: string) => {
     setToDelete(null);
+    removeChannelSessionFromCache(qc, id);
     invalidate();
-  }, [invalidate]);
+  }, [invalidate, qc]);
 
-  const handleConnected = useCallback(() => {
+  const handleConnected = useCallback((id: string) => {
     toast.success(t("WhatsApp conectado!"));
     setQr(null);
+    updateChannelSessionInCache(qc, { id, status: "WORKING", status_reason: null });
     invalidate();
-  }, [invalidate, t]);
+  }, [invalidate, qc, t]);
 
   const list = sessions ?? [];
 
@@ -504,7 +524,7 @@ function ExcluirCanalDialog({
 }: {
   canal: ChannelSession;
   onCancel: () => void;
-  onDeleted: () => void;
+  onDeleted: (id: string) => void;
 }) {
   const t = useT();
   const [excluindo, setExcluindo] = useState(false);
@@ -539,7 +559,7 @@ function ExcluirCanalDialog({
             ? `${t("Canal removido.")} ${contar(conversas, "conversa continua", "conversas continuam", t)} ${t("no inbox.")}`
             : t("Canal removido. O que estava ligado a ele continua guardado."),
       );
-      onDeleted();
+      onDeleted(res.data.id);
     } catch (err) {
       toast.error(errMsg(err, "Não foi possível excluir o canal.", t));
     } finally {
@@ -609,7 +629,7 @@ function QrDialog({
   title: string;
   wahaConfigured: boolean;
   onClose: () => void;
-  onConnected: () => void;
+  onConnected: (id: string) => void;
   onForcePair: (sessionId: string) => Promise<void>;
 }) {
   const t = useT();
@@ -631,7 +651,7 @@ function QrDialog({
         setStatus(s);
         if (s === "WORKING" && !done.current) {
           done.current = true;
-          onConnected();
+          onConnected(sessionId);
         }
       } catch {
         // erro transitório de rede — o próximo tick tenta de novo

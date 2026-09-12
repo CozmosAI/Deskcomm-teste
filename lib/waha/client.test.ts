@@ -421,12 +421,19 @@ describe("sessões: conflito conhecido só converge com identidade e pós-condi�
     });
   });
 
-  it("sessão STOPPED sem engine usa versão do servidor, e versão desconhecida permite tentar", async () => {
+  it("sessão com engine={} aceita server/version noweb sem distinguir caixa", async () => {
     await receive([
       create(), read(session("STOPPED", { engine: {} })),
-      { method: "GET", path: "/api/server/version", status: 200, body: { version: "2027.1.0", tier: "CORE", engine: "NOWEB" } },
+      { method: "GET", path: "/api/server/version", status: 200, body: { version: "2027.1.0", tier: "CORE", engine: "noweb" } },
       start, read(session("SCAN_QR_CODE")),
     ], async (c) => {
+      await expect(c.startSession(name)).resolves.toMatchObject({ status: "SCAN_QR_CODE" });
+    });
+  });
+
+  it("sessão que informa engine=noweb diretamente também é compatível", async () => {
+    const lower = (status = "STOPPED") => session(status, { engine: { engine: "noweb" } });
+    await receive([create(), read(lower()), start, read(lower("SCAN_QR_CODE"))], async (c) => {
       await expect(c.startSession(name)).resolves.toMatchObject({ status: "SCAN_QR_CODE" });
     });
   });

@@ -231,7 +231,7 @@ export class WahaClient {
     const actualEngine = engine ?? (await this.getServerVersion()).engine;
     // O contrato de criação atual é NOWEB. Engine desconhecido não é licença:
     // a operação já foi tentada, mas não podemos confirmar uma sessão incompatível.
-    if (actualEngine !== "NOWEB") return false;
+    if (actualEngine?.trim().toUpperCase() !== "NOWEB") return false;
     const ignore = session.config.ignore;
     if (ignore === undefined) return true; // sessão legada; convergência preserva webhooks
     if (!ignore || typeof ignore !== "object" || Array.isArray(ignore)) return false;
