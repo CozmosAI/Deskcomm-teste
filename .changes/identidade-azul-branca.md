@@ -1,6 +1,6 @@
 ---
 impacto: nada_mudou
-secao: melhorado
+secao: alterado
 titulo: Identidade visual azul e branca
 ---
 
