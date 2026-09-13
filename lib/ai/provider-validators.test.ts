@@ -33,6 +33,7 @@ function fetchFalso(respostas: Record<string, { status: number; body?: unknown }
 
 afterEach(() => {
   chamadas.length = 0;
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -80,5 +81,29 @@ describe("validateOpenRouterKey", () => {
     );
     await validateOpenRouterKey("sk-or-v1-boa");
     expect(chamadas[0]).toContain("/api/v1/key");
+  });
+
+  it("aborta a requisição ativa no timeout sem iniciar retry", async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    const fetchPendente = vi.fn((_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+    vi.stubGlobal("fetch", fetchPendente);
+
+    const validacao = validateOpenRouterKey("sk-or-v1-boa");
+    await vi.advanceTimersByTimeAsync(5_000);
+    const resultado = await validacao;
+
+    expect(resultado).toEqual({ ok: false, error: "network_error" });
+    expect(signal?.aborted).toBe(true);
+    expect(fetchPendente).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,6 +2,7 @@ import type pg from "pg";
 import { loadAgentVersionConfig } from "./agent-config";
 import { runAgentPreview, type InboundTurnDeps } from "./inbound-turn";
 import { newPreviewResult, scenarioContext } from "./preview";
+import { withModelCallAbortSignal } from "../edge/llm/run-model-call";
 export async function testAgentVersion(
   pool: pg.Pool,
   deps: InboundTurnDeps,
@@ -13,6 +14,7 @@ export async function testAgentVersion(
     sampleMessage: string;
     sampleContact?: { name?: string; phone?: string };
     channelId: string | null;
+    abortSignal?: AbortSignal;
   },
 ) {
   const agent = await loadAgentVersionConfig(
@@ -33,15 +35,18 @@ export async function testAgentVersion(
     ],
     input.sampleContact,
   );
-  await runAgentPreview(deps, pool, {
-    kind: "sandbox",
-    organizationId: input.organizationId,
-    runId: input.runId,
-    agent,
-    context,
-    contactId: null,
-    channelId: input.channelId,
-    result,
-  });
+  const executar = () =>
+    runAgentPreview(deps, pool, {
+      kind: "sandbox",
+      organizationId: input.organizationId,
+      runId: input.runId,
+      agent,
+      context,
+      contactId: null,
+      channelId: input.channelId,
+      result,
+    });
+  if (input.abortSignal) await withModelCallAbortSignal(input.abortSignal, executar);
+  else await executar();
   return result;
 }

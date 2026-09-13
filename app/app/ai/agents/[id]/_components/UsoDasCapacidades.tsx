@@ -62,7 +62,7 @@ const SINAL: Record<SinalDeUso, { rotulo: string; classe: string }> = {
   },
   saudavel: {
     rotulo: "funcionando",
-    classe: "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",
+    classe: "border-success/40 text-success-fg",
   },
 };
 

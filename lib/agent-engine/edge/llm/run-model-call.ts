@@ -17,6 +17,7 @@ import { guardServiceTools } from "@/lib/atendimento/fronteira-server";
  * upgrade de major re-valida esses paths pelo mesmo gate (regra dura 16).
  */
 import { generateText, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import type pg from 'pg';
 import { z } from 'zod';
 
@@ -24,7 +25,12 @@ import { scrubMessage } from '@/lib/sentry/scrub';
 
 import type { Logger } from '../../obs/logger';
 import { decidirParaOSeam } from './binding-do-ponto';
-import { resolveOrgLlmConfig, type LlmEdgeConfig, type OrcamentoDaOrg } from './credentials';
+import {
+  resolveOrgLlmConfig,
+  type LlmEdgeConfig,
+  type LlmResolveOverride,
+  type OrcamentoDaOrg,
+} from './credentials';
 import {
   AVISO_CORPO,
   AVISO_TITULO,
@@ -47,6 +53,13 @@ export { tool } from 'ai';
 export type { ModelMessage, ToolSet } from 'ai';
 export type { LlmEdgeConfig } from './credentials';
 export { llmEdgeConfigFromEnv, LlmNotConfiguredError } from './credentials';
+
+const modelCallAbortSignal = new AsyncLocalStorage<AbortSignal>();
+
+/** Aplica um teto ao turno inteiro, inclusive às chamadas auxiliares aninhadas. */
+export function withModelCallAbortSignal<T>(signal: AbortSignal, operacao: () => T): T {
+  return modelCallAbortSignal.run(signal, operacao);
+}
 
 /** Teto mensal da org esgotado — runs recusados ANTES do provider (zero tokens). */
 export class LlmBudgetExceededError extends Error {
@@ -131,7 +144,7 @@ export interface RunModelCallInput {
    * Override de provider/credencial vindo da versão PUBLICADA do agente (Fase
    * 2B) — resolvido no seam, nunca no call site. Sem ele, config da org.
    */
-  llmOverride?: import('./credentials').LlmResolveOverride;
+  llmOverride?: LlmResolveOverride;
 }
 
 export interface RunModelCallDeps {
@@ -421,6 +434,7 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       // (gateway OpenAI-compatível, ou modelo local). Providers canônicos
       // ignoram o terceiro argumento e vão ao endpoint intrínseco.
       model: factory(config.apiKey, model, decisao.baseUrl ?? undefined),
+      abortSignal: modelCallAbortSignal.getStore(),
       system: prefix.system,
       messages: input.messages,
       tools: guardServiceTools(prefix.tools),

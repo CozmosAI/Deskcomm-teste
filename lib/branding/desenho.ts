@@ -98,6 +98,6 @@ export const LOGOTIPO = {
  * o nome e neutro 600/300 para o "CRM". Copiadas dos SVGs de `docs/brand/`.
  */
 export const CORES_DA_MARCA = {
-  claro: { simbolo: "#506d48", nome: "#1c1a16", sufixo: "#5d594f" },
-  escuro: { simbolo: "#82a077", nome: "#f5f4ef", sufixo: "#8e8b7f" },
+  claro: { simbolo: "#1447e6", nome: "#1c1a16", sufixo: "#5d594f" },
+  escuro: { simbolo: "#5b8cff", nome: "#f5f4ef", sufixo: "#8e8b7f" },
 } as const;

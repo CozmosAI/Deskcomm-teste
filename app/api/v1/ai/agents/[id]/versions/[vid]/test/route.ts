@@ -16,7 +16,7 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  * Sample contact é apenas pra contexto do prompt — nunca toca contacts/conversations
  * tables, nunca chama WAHA, nunca cria messages.outbound.
  */
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
 import { ok, fail } from "@/lib/api/wrappers";
@@ -28,13 +28,72 @@ import { avaliarRespostaDeTeste } from "@/lib/ai/agents/avaliar-resposta-de-test
 import { testAgentVersion } from "@/lib/agent-engine/agent/sandbox";
 import { requestTurnDeps } from "@/lib/agent-engine/agent/request-deps";
 import { getRequestPool } from "@/lib/agent-engine/db/request-pool";
+import { normalizarErro } from "@/lib/agent-engine/edge/llm/run-model-call";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
 const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PREVIEW_TIMEOUT_MS = 60_000;
 
 type Ctx = { params: Promise<{ id: string; vid: string }> };
+type RunTerminalStatus = "completed" | "failed";
+
+function aguardarComAbort<T>(operacao: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const encerrar = (conclusao: () => void) => {
+      signal.removeEventListener("abort", abortar);
+      conclusao();
+    };
+    const abortar = () =>
+      encerrar(() => reject(signal.reason ?? new DOMException("preview_timeout", "TimeoutError")));
+    if (signal.aborted) abortar();
+    else signal.addEventListener("abort", abortar, { once: true });
+    void operacao.then(
+      (valor) => encerrar(() => resolve(valor)),
+      (err) => encerrar(() => reject(err)),
+    );
+  });
+}
+
+async function terminalizarRun(
+  admin: ReturnType<typeof createAdminClient>,
+  input: {
+    organizationId: string;
+    agentId: string;
+    versionId: string;
+    runId: string;
+    requestId: string;
+    status: RunTerminalStatus;
+    payload: Record<string, unknown>;
+  },
+): Promise<boolean> {
+  let ultimoCodigo = "unknown";
+  for (let tentativa = 1; tentativa <= 2; tentativa += 1) {
+    const { error } = await admin
+      .from("ai_agent_runs")
+      .update(input.payload)
+      .eq("organization_id", input.organizationId)
+      .eq("id", input.runId);
+    if (!error) return true;
+    ultimoCodigo = error.code || "unknown";
+  }
+
+  // A mensagem do banco pode carregar valores de constraint. O código basta
+  // para operar e os IDs correlacionam com o request/run sem expor conteúdo.
+  logger.error("ai agent preview run finalization failed", {
+    request_id: input.requestId,
+    organization_id: input.organizationId,
+    agent_id: input.agentId,
+    agent_version_id: input.versionId,
+    run_id: input.runId,
+    terminal_status: input.status,
+    database_error_code: ultimoCodigo,
+    attempts: 2,
+  });
+  return false;
+}
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   const supportDenied = await requireSupportWrite();
@@ -106,7 +165,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
   let resultPayload: Record<string, unknown>;
 
   try {
-    const result = await testAgentVersion(getRequestPool(), requestTurnDeps(), {
+    // Teto pertence ao servidor: desconectar o cliente não cancela a
+    // terminalização do run nem deixa a chamada ao provedor sem limite.
+    const abortSignal = AbortSignal.timeout(PREVIEW_TIMEOUT_MS);
+    const operacao = testAgentVersion(getRequestPool(), requestTurnDeps(), {
       organizationId: activeOrg.orgId,
       agentId: id,
       versionId: vid,
@@ -114,7 +176,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       sampleMessage: parsed.data.sample_message,
       sampleContact: parsed.data.sample_contact,
       channelId: version.channel_session_id,
+      abortSignal,
     });
+    const result = await aguardarComAbort(operacao, abortSignal);
     const finalText = result.candidates.map((c) => c.body).join("\n\n");
     resultPayload = {
       run_id: runRow.id,
@@ -126,25 +190,55 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       stub: process.env.INTERNAL_AGENT_RUN_STUB === "true",
       guardrails: avaliarRespostaDeTeste(finalText),
     };
-    await admin
-      .from("ai_agent_runs")
-      .update({
-        status: "ok",
+    const terminalizado = await terminalizarRun(admin, {
+      organizationId: activeOrg.orgId,
+      agentId: id,
+      versionId: vid,
+      runId: runRow.id,
+      requestId,
+      status: "completed",
+      payload: {
+        status: "completed",
         completed_at: new Date().toISOString(),
         tool_calls: JSON.parse(JSON.stringify(result.proposals)),
-      })
-      .eq("organization_id", activeOrg.orgId)
-      .eq("id", runRow.id);
-  } catch {
-    await admin
-      .from("ai_agent_runs")
-      .update({
-        status: "error",
+      },
+    });
+    if (!terminalizado) {
+      return fail("internal_error", t("Não foi possível registrar o fim do teste."), 500, {
+        requestId,
+      });
+    }
+  } catch (err) {
+    const diagnostico = normalizarErro(err);
+    logger.error("ai agent preview failed", {
+      request_id: requestId,
+      organization_id: activeOrg.orgId,
+      agent_id: id,
+      agent_version_id: vid,
+      run_id: runRow.id,
+      error_code: diagnostico.error_code,
+      http_status: diagnostico.http_status,
+      // Correlaciona ocorrências sem persistir mensagem, segredo, PII ou amostra.
+      error_fingerprint: createHash("sha256").update(diagnostico.error_message).digest("hex"),
+    });
+    const terminalizado = await terminalizarRun(admin, {
+      organizationId: activeOrg.orgId,
+      agentId: id,
+      versionId: vid,
+      runId: runRow.id,
+      requestId,
+      status: "failed",
+      payload: {
+        status: "failed",
         completed_at: new Date().toISOString(),
         error_code: "preview_failed",
-      })
-      .eq("organization_id", activeOrg.orgId)
-      .eq("id", runRow.id);
+      },
+    });
+    if (!terminalizado) {
+      return fail("internal_error", t("Não foi possível registrar a falha do teste."), 500, {
+        requestId,
+      });
+    }
     return fail(
       "preview_failed",
       t("Não foi possível executar o teste. Confira modelo, credencial e materiais do agente."),

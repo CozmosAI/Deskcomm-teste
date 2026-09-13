@@ -18,7 +18,10 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import { runModelCall } from "@/lib/agent-engine/edge/llm/run-model-call";
+import {
+  runModelCall,
+  withModelCallAbortSignal,
+} from "@/lib/agent-engine/edge/llm/run-model-call";
 
 const ORG = "22222222-2222-4222-8222-222222222222";
 
@@ -123,6 +126,74 @@ describe("a chamada que falha vira linha no log", () => {
     // input_tokens/output_tokens são zero literais no SQL; o custo é null —
     // "não sei" e não "de graça", a mesma doutrina de cost_cents.
     expect(linhaDeErro!.sql).toMatch(/0, 0, 0, 0, null/);
+  });
+});
+
+describe("cancelamento do preview", () => {
+  it("propaga o AbortSignal do teto global até a chamada do provider", async () => {
+    const { pool } = poolQueGrava();
+    const controller = new AbortController();
+    let recebido: AbortSignal | undefined;
+    const fabrica = () => ({
+      specificationVersion: "v3",
+      provider: "google",
+      modelId: "gemini-2.5-flash",
+      doGenerate: async (opcoes: { abortSignal?: AbortSignal }) => {
+        recebido = opcoes.abortSignal;
+        throw new DOMException("preview_timeout", "TimeoutError");
+      },
+    }) as never;
+
+    await withModelCallAbortSignal(controller.signal, () =>
+      runModelCall(
+        pool,
+        cfg,
+        { tenantId: ORG, purpose: "agent_turn", messages: [{ role: "user", content: "oi" }] },
+        { registry: { anthropic: fabrica } },
+      ),
+    ).catch(() => {});
+
+    expect(recebido).toBe(controller.signal);
+  });
+
+  it("aborta a requisição ativa e não inicia retry depois do timeout", async () => {
+    const { pool } = poolQueGrava();
+    const controller = new AbortController();
+    let tentativas = 0;
+    let ativas = 0;
+    const fabrica = () => ({
+      specificationVersion: "v3",
+      provider: "anthropic",
+      modelId: "claude-padrao",
+      doGenerate: ({ abortSignal }: { abortSignal?: AbortSignal }) => {
+        tentativas += 1;
+        ativas += 1;
+        return new Promise((_resolve, reject) => {
+          const encerrar = () => {
+            ativas -= 1;
+            reject(abortSignal?.reason ?? new DOMException("preview_timeout", "AbortError"));
+          };
+          if (abortSignal?.aborted) encerrar();
+          else abortSignal?.addEventListener("abort", encerrar, { once: true });
+        });
+      },
+    }) as never;
+
+    const chamada = withModelCallAbortSignal(controller.signal, () =>
+      runModelCall(
+        pool,
+        cfg,
+        { tenantId: ORG, purpose: "agent_turn", messages: [{ role: "user", content: "oi" }] },
+        { registry: { anthropic: fabrica } },
+      ),
+    );
+    await vi.waitFor(() => expect(tentativas).toBe(1));
+    controller.abort(new DOMException("preview_timeout", "TimeoutError"));
+    await expect(chamada).rejects.toMatchObject({ name: "TimeoutError" });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    expect(tentativas).toBe(1);
+    expect(ativas).toBe(0);
   });
 });
 

@@ -48,9 +48,9 @@ const ESTADO_LEGIVEL: Record<string, string> = {
   PENDING_BILLING_INFO: "Aguardando dados de cobrança",
 };
 
-/** Verde só para quem está realmente entregando; âmbar para o que pede atenção. */
+/** Sucesso usa o token da marca; âmbar sinaliza o que pede atenção. */
 const TOM_DO_ESTADO: Record<string, string> = {
-  ACTIVE: "text-emerald-600 dark:text-emerald-400",
+  ACTIVE: "text-success-fg",
   WITH_ISSUES: "text-amber-600 dark:text-amber-400",
   DISAPPROVED: "text-red-600 dark:text-red-400",
   PENDING_BILLING_INFO: "text-amber-600 dark:text-amber-400",

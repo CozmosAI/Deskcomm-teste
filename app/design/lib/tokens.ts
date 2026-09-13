@@ -38,14 +38,15 @@ export type PaletteDef = {
 // ─── Palettes ──────────────────────────────────────────────────────────────
 
 export const PALETTES: Record<PaletteId, PaletteDef> = {
+  // `sage` é o id legado persistido; mantê-lo evita quebrar preferências salvas.
   sage: {
     id: "sage",
-    name: "Sage",
-    description: "Verde-erva desaturado. Calmo, confiável, vegetal.",
+    name: "Azul",
+    description: "Azul profissional desaturado. Confiável, focado, corporativo.",
     accent: {
-      50: "#f3f6f1", 100: "#e4ebe0", 200: "#c8d6c1", 300: "#a4ba9a",
-      400: "#82a077", 500: "#67885d", 600: "#506d48", 700: "#41573b",
-      800: "#374731", 900: "#2f3c2b", 950: "#171f15",
+      50: "#f0f5ff", 100: "#dde8ff", 200: "#b9d0ff", 300: "#89afff",
+      400: "#5b8cff", 500: "#316aff", 600: "#1447e6", 700: "#143db3",
+      800: "#14358f", 900: "#142f75", 950: "#081942",
     },
     neutralLight: {
       50: "#faf9f6", 100: "#f3f1ec", 200: "#e7e3da", 300: "#d2cdbf",
@@ -58,8 +59,8 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       800: "#1d1c17", 900: "#161510", 950: "#0c0b08",
     },
     states: {
-      light: { success: "#5a8a5f", warning: "#b07a2b", error: "#a94a3c", info: "#4a7a93" },
-      dark:  { success: "#82a077", warning: "#d09455", error: "#c87263", info: "#7da9bf" },
+      light: { success: "#1447e6", warning: "#b07a2b", error: "#a94a3c", info: "#4a7a93" },
+      dark:  { success: "#5b8cff", warning: "#d09455", error: "#c87263", info: "#7da9bf" },
     },
     surfaces: {
       light: { bg: "#faf9f6", surface: "#ffffff", surfaceElevated: "#f5f3ee", text: "#1c1a16", textMuted: "#5d594f", border: "#e7e3da" },
