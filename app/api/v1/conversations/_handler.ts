@@ -163,7 +163,14 @@ export async function listConversationsHandler(
 
   let query = supabase
     .from("conversations")
-    .select(SELECT_COLS)
+    // Tipo e legenda reais: o preview legado pode ser texto literal "[image]".
+    // Embed limitado evita N+1 e não transfere o histórico/mídia na listagem.
+    .select(`${SELECT_COLS}, latest_message:messages!messages_conversation_id_fkey(type,body,sent_at,revoked_at)`)
+    .eq("latest_message.organization_id", ctx.organization_id)
+    .order("sent_at", { referencedTable: "latest_message", ascending: false })
+    .order("created_at", { referencedTable: "latest_message", ascending: false })
+    .order("id", { referencedTable: "latest_message", ascending: false })
+    .limit(1, { referencedTable: "latest_message" })
     .eq("organization_id", ctx.organization_id)
     .order(sortCol, { ascending: asc, nullsFirst: false })
     .order("id", { ascending: asc })

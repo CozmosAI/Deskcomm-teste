@@ -5,7 +5,7 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import type { Locale } from "date-fns";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { useT } from "@/hooks/i18n/useT";
-import { Phone, Robot } from "@/lib/ui/icons";
+import { ImageIcon, Phone, Robot } from "@/lib/ui/icons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { OwnerBadge } from "@/components/kanban/OwnerBadge";
@@ -128,7 +128,15 @@ export function ConversationListItem({
   const tags = c?.tags ?? [];
   const visibleTags = tags.slice(0, 2);
   const overflow = tags.length - visibleTags.length;
-  const preview = conversation.last_message_preview?.trim() || t("Sem mensagens");
+  const ultima = conversation.latest_message?.[0];
+  // O token sozinho também pode ser texto legítimo. Só rotular com o tipo real,
+  // e quando o carimbo corresponde: não ressuscitar mídia antiga após redact.
+  const imagem = ultima?.type === "image" && !ultima.revoked_at &&
+    !!conversation.last_message_at &&
+    Date.parse(ultima.sent_at) === Date.parse(conversation.last_message_at);
+  const preview = imagem
+    ? `${t("Imagem")}${ultima.body?.trim() ? `: ${ultima.body.trim()}` : ""}`
+    : conversation.last_message_preview?.trim() || t("Sem mensagens");
   const truncated = preview.length > 60 ? `${preview.slice(0, 60)}…` : preview;
   const time = relativeTime(conversation.last_message_at, localeDaData);
   const unread = conversation.unread_count_for_assignee ?? 0;
@@ -246,6 +254,7 @@ export function ConversationListItem({
             {isAi && mostrarAutomatico ? (
               <Robot size={12} weight="duotone" className="mr-1 inline align-[-2px]" aria-hidden />
             ) : null}
+            {imagem ? <ImageIcon size={12} className="mr-1 inline align-[-2px]" aria-hidden /> : null}
             {truncated}
           </p>
           {unread > 0 && (

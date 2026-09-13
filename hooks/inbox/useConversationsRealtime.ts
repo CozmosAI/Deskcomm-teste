@@ -49,6 +49,8 @@ export interface ChannelSummary {
 }
 
 export type ConversationWithContact = Conversation & {
+  /** Embed limitado da última mensagem; ausente em caches anteriores. */
+  latest_message?: Array<{ type: string; body: string | null; sent_at: string; revoked_at: string | null }>;
   contacts?: ContactSummary | null;
   channel_sessions?: ChannelSummary | null;
   /**
