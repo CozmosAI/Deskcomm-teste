@@ -4088,6 +4088,13 @@ export const DICIONARIO: Traducoes = {
   "Desligada. Ninguém consegue ligar nem receber chamadas por aqui.": {
     es: "Desactivada. Nadie puede llamar ni recibir llamadas por aquí.",
   },
+  "A chamada de voz está desligada nesta empresa.": {
+    es: "La llamada de voz está desactivada en esta empresa.",
+  },
+  "Conectar o aparelho exige ligá-la antes, em Configurações › Segurança — é lá que está o aviso sobre o risco de o WhatsApp bloquear a conta, e quem liga precisa ter lido.":
+    {
+      es: "Conectar el dispositivo exige activarla antes, en Configuración › Seguridad — allí está el aviso sobre el riesgo de que WhatsApp bloquee la cuenta, y quien la activa tiene que haberlo leído.",
+    },
   "Leia antes de ligar": { es: "Lee antes de activar" },
   "Para fazer chamadas, o sistema precisa conectar um segundo aparelho ao mesmo número de WhatsApp que você já usa para atender. Essa conexão não é feita pelo caminho oficial do WhatsApp.":
     {
@@ -8322,6 +8329,30 @@ export const DICIONARIO: Traducoes = {
   "Este ponto usa o modelo definido na versão publicada do agente; a escolha do painel não se aplica.": {
     es: "Este punto usa el modelo definido en la versión publicada del agente; la elección del panel no se aplica.",
   },
+
+  // ─── app/app/team/_components/TeamInvitesClient.tsx (lista de convites) ───
+  "Convites": { es: "Invitaciones" },
+  "Convites enviados e seu status. Um convite aceito vira membro na lista acima.": {
+    es: "Invitaciones enviadas y su estado. Una invitación aceptada se vuelve miembro en la lista de arriba.",
+  },
+  "Nenhum convite enviado.": { es: "Ninguna invitación enviada." },
+  "Erro ao carregar convites.": { es: "Error al cargar las invitaciones." },
+  "E-mail enviado": { es: "Correo enviado" },
+  "Enviado em": { es: "Enviado el" },
+  "Convidado por": { es: "Invitado por" },
+  "Expirado": { es: "Expirada" },
+  "Não saiu": { es: "No salió" },
+  "reenviado": { es: "reenviado" },
+  "Revogar convite": { es: "Revocar invitación" },
+  "não poderá mais usar este convite para entrar. Você pode enviar um novo depois.": {
+    es: "ya no podrá usar esta invitación para entrar. Puedes enviar una nueva después.",
+  },
+  "Link do convite copiado.": { es: "Enlace de la invitación copiado." },
+  "Não foi possível copiar. Copie da barra do navegador.": {
+    es: "No se pudo copiar. Cópialo desde la barra del navegador.",
+  },
+  "Convite reenviado.": { es: "Invitación reenviada." },
+  "Convite revogado.": { es: "Invitación revocada." },
 };
 
 /**
