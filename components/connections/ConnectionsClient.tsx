@@ -225,9 +225,14 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
   );
 
   const handleDeleted = useCallback((id: string) => {
+    // Fecha o diálogo ANTES de tocar no cache: se invalidate() falhar de forma
+    // não-capturada (ex.: AbortError por desmount), o diálogo ficaria aberto
+    // com um id que já não existe — e um segundo clique no Excluir bateria 404.
     setToDelete(null);
     removeChannelSessionFromCache(qc, id);
-    invalidate();
+    // fire-and-forget: React Query ignora await, mas o setState em cadeia é o
+    // que tira o card da UI em tempo real (complementa o invalidate).
+    void invalidate();
   }, [invalidate, qc]);
 
   const handleConnected = useCallback((id: string) => {
