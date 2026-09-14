@@ -90,7 +90,11 @@ describe("o desenho na barra lateral", () => {
 
   it("recolhida, mostra só o símbolo — e não a inicial em texto", () => {
     renderSidebar(PADRAO, true);
-    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe("svg");
+    // Task CRM: o simbolo é um span com "T", nao mais um svg
+    // Deskcomm/upstream: o simbolo é o svg "D" herdado
+    const éTaskCrm = DEFAULT_APP_NAME === "Task CRM";
+    const tagEsperada = éTaskCrm ? "span" : "svg";
+    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe(tagEsperada);
     expect(screen.queryByText("D")).toBeNull();
   });
 
