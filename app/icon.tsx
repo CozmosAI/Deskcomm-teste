@@ -78,7 +78,11 @@ export const contentType = "image/png";
 export default async function Icon() {
   const marca = await marcaDaSaida(null);
 
-  if (marcaEhADoProduto({ name: marca.nome, logoUrl: marca.logoUrl })) {
+  // "Task CRM" tem ícone próprio (letra T em azul), não o "D" do upstream.
+  // Em outras instalações self-host, o fallback genérico do Deskcomm ainda
+  // é o correto — então a guarda é pelo nome resolvido, não por "é o padrão".
+  const isTaskCrm = marca.nome === "Task CRM";
+  if (!isTaskCrm && marcaEhADoProduto({ name: marca.nome, logoUrl: marca.logoUrl })) {
     // 78% da aresta: o D ocupa ~75% do próprio viewBox, então sobra o mesmo
     // respiro que a letra tem no ramo de baixo.
     const lado = Math.round(size.width * 0.78);
@@ -100,6 +104,32 @@ export default async function Icon() {
               <rect {...SIMBOLO.modulo} />
             </g>
           </svg>
+        </div>
+      ),
+      { ...size, headers: CACHE },
+    );
+  }
+
+  if (isTaskCrm) {
+    // Ladrilho azul com a letra T — a marca Task desenhada em runtime, sem
+    // depender do glifo "D" herdado do projeto original.
+    return new ImageResponse(
+      (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#1447e6",
+            color: "#ffffff",
+            fontSize: Math.round(size.height * 0.68),
+            fontWeight: 700,
+            borderRadius: 0,
+          }}
+        >
+          T
         </div>
       ),
       { ...size, headers: CACHE },
