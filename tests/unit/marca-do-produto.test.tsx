@@ -76,7 +76,11 @@ describe("o desenho na barra lateral", () => {
   it("aberta e sem marca própria, mostra o logotipo do produto (SVG, não <img>)", () => {
     renderSidebar(PADRAO, false);
     const logotipo = screen.getByRole("img", { name: DEFAULT_APP_NAME });
-    expect(logotipo.tagName.toLowerCase()).toBe("svg");
+    // O "logotipo do produto" pode ser SVG (Deskcomm upstream, preservado como
+    // desenho canonico) OU um span com a marca tipográfica (Task CRM, quando
+    // DEFAULT_APP_NAME está em "Task CRM"). O gate real contra <img> é o
+    // abaixo — o formato visual da marca padrão é uma decisao do produto.
+    expect(["svg", "span"]).toContain(logotipo.tagName.toLowerCase());
     // O e2e `marca-logo.spec.ts` lê "barra sem <img>" como "sem logo do
     // revendedor"; um <img> do produto aqui faria a spec medir a coisa errada.
     expect(document.querySelector("img")).toBeNull();

@@ -26,6 +26,15 @@ type Props = {
   readonly decorativo?: boolean;
 };
 
+/**
+ * TRUE quando o produto é vendido como `Task CRM` — essa marca usa logo
+ * tipográfico próprio, não o glifo herdado do upstream ("D" + nome do
+ * integrador). A detecção por nome permite que clones upstream preservem o
+ * caminho original; Task CRM está configurado para nome == "Task CRM" na
+ * instalação canônica.
+ */
+const MARCA_EH_TASK_CRM = (nome: string) => nome === "Task CRM";
+
 const SIMBOLO_CLARO_ESCURO = "fill-[#1447e6] dark:fill-[#5b8cff]";
 const NOME_CLARO_ESCURO = "fill-[#1c1a16] dark:fill-[#f5f4ef]";
 const SUFIXO_CLARO_ESCURO = "fill-[#5d594f] dark:fill-[#8e8b7f]";
@@ -64,6 +73,19 @@ export function SimboloDoProduto({ nome, className, decorativo = false }: Props)
 
 /** Símbolo + nome — para a barra aberta e a fachada de entrada. */
 export function LogotipoDoProduto({ nome, className, decorativo = false }: Props) {
+  if (MARCA_EH_TASK_CRM(nome)) {
+    return (
+      <span
+        role={decorativo ? undefined : "img"}
+        aria-label={decorativo ? undefined : nome}
+        aria-hidden={decorativo}
+        className={cn("select-none font-semibold tracking-tight", className)}
+      >
+        <span className="text-[#1447e6] dark:text-[#5b8cff]">Task</span>{" "}
+        <span className="text-[#1c1a16] dark:text-[#f5f4ef]">CRM</span>
+      </span>
+    );
+  }
   return (
     <svg
       viewBox={LOGOTIPO.viewBox}
