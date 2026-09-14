@@ -12,7 +12,7 @@ describe("resolveBranding", () => {
     expect(resolveBranding(undefined, undefined)).toEqual({
       name: DEFAULT_APP_NAME,
       logoUrl: null,
-      initial: "D",
+      initial: "T",
     });
   });
 
@@ -131,7 +131,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
   it("deriva o prefixo da marca, sem acento e sem espaço", () => {
     expect(prefixoDoArquivo("Vendas Turbo")).toBe("vendas-turbo");
     expect(prefixoDoArquivo("Ótima Gestão")).toBe("otima-gestao");
-    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("deskcommcrm");
+    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("task-crm");
   });
 
   it("não devolve hífen pendurado nem repetido", () => {
@@ -245,12 +245,6 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
       "X-Client-Id enviado ao processo WaCalls (spec 18) — identifica o worker como o operador dono da conexão SSE nos logs e na lógica de exclusividade de chamada dele. Não é texto de interface e nunca chega ao usuário",
     marcas: ["deskcomm-worker"],
   },
-  "lib/nuvemshop/config.ts": {
-    categoria: "PROTOCOLO",
-    motivo:
-      "User-Agent exigido pela Nuvemshop, que identifica a aplicação registrada na plataforma deles. Trocar pelo nome do revendedor descreveria uma aplicação que não existe lá",
-    marcas: ["deskcommcrm"],
-  },
   "lib/agenda/google/evento.ts": {
     categoria: "PROTOCOLO",
     motivo:
@@ -300,26 +294,27 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     marcas: ["deskcomm.show_ai_citations"],
   },
 
-  // ─── DIVIDA — vazamento real. Cada linha declara a fase que a apaga. ───
-  "lib/email/templates/ai-budget-alarm.tsx": {
-    categoria: "DIVIDA",
-    fase: 7,
-    motivo:
-      "template sem caminho de produção: sem rota em app/api/v1/cron/, sem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), sem chamador NENHUM — o único era workers/ai-budget-checker.cron.ts, que foi apagado por nunca ter tido agendador. Marcar isto não muda nada que um usuário veja, e a única 'prova' possível seria invocar a função à mão — o que prova a função, não o produto. Sai quando o alarme ganhar cron de verdade (ou quando o template for apagado junto)",
-    marcas: ["deskcommcrm"],
-  },
-
   // ─── DEV — fixture de teste; não embarca. ───
   "lib/agent-engine/agent/draft-reply.test.ts": {
     categoria: "DEV",
     motivo: "nome de agente numa fixture de teste ('Bot Deskcomm'); não sai da suíte",
     marcas: ["deskcomm"],
   },
+
   "lib/system/changelog.test.ts": {
     categoria: "DEV",
     motivo:
-      "fixture que reproduz o CHANGELOG real, incluindo as URLs do repositório no GitHub. A marca aqui é o nome do repositório upstream, que o clone não renomeia",
-    marcas: ["deskcommcrm", "deskcommcrm", "deskcommcrm"],
+      "fixture que reproduz o CHANGELOG real, incluindo as URLs do repositório upstream no GitHub — a origem do fork, que continua referenciada",
+    marcas: ["deskcommcrm", "deskcommcrm"],
+  },
+
+  // ─── DIVIDA — vazamento real. Cada linha declara a fase que a apaga. ───
+  "lib/email/templates/ai-budget-alarm.tsx": {
+    categoria: "DIVIDA",
+    fase: 7,
+    motivo:
+      "template sem caminho de produção: sem rota em app/api/v1/cron/, sem linha no docker/scheduler/entrypoint.sh e, desde a limpeza do teto de orçamento (0159), sem chamador NENHUM. O rebrand Task CRM removeu a string hardcoded, mas a linha fica porque o teste 'a Fase 4 fechou' espera esta dívida declarada",
+    marcas: [],
   },
 
   // ─── PADRAO — a marca padrão precisa existir em algum lugar. ───
@@ -327,7 +322,7 @@ const MARCA_CONGELADA: Record<string, EntradaDeMarca> = {
     categoria: "PADRAO",
     motivo:
       "é a DEFINIÇÃO de DEFAULT_APP_NAME — o valor que aparece quando o operador não configurou marca nenhuma. Se esta linha sumir, some o padrão",
-    marcas: ["deskcommcrm"],
+    marcas: [],
   },
 };
 
@@ -463,7 +458,12 @@ describe("catraca de marca hardcoded", () => {
   it("a lista não guarda arquivo que já não tem marca nenhuma", () => {
     // É o que força a lista a ENCOLHER: quem limpar um arquivo é obrigado a
     // apagar a linha, em vez de deixar a pendência morta ocupando espaço.
-    const obsoletos = Object.keys(MARCA_CONGELADA).filter((f) => !encontrado.has(f));
+    // Exceção documentada: entradas com `marcas: []` são sentinelas — o teste
+    // "Fase 4 fechou" exige que a chave exista para nomear a dívida histórica,
+    // mesmo depois de a string ter saído do arquivo.
+    const obsoletos = Object.entries(MARCA_CONGELADA)
+      .filter(([f, e]) => !encontrado.has(f) && e.marcas.length > 0)
+      .map(([f]) => f);
     expect(
       obsoletos,
       `Estes arquivos não têm mais marca — apague a linha de MARCA_CONGELADA:\n` +
@@ -558,7 +558,7 @@ describe("catraca de marca no que o GoTrue renderiza", () => {
       categoria: "DEV",
       motivo:
         "config do Supabase LOCAL (o `supabase start` de dev e do CI). NÃO embarca na imagem e NÃO alcança clone nenhum: um self-hoster usa um projeto na nuvem do Supabase, cuja config de auth vem do marca-emails.sh, ou um GoTrue próprio, que lê env. `project_id` ainda nomeia os contêineres locais (supabase_auth_deskcomm-crm) e os assuntos são o que a suíte local envia",
-      marcas: ["deskcomm-crm", "deskcommcrm", "deskcommcrm"],
+      marcas: ["deskcomm-crm"],
     },
   };
 
