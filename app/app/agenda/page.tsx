@@ -200,7 +200,6 @@ export default async function AgendaPage() {
 
   return (
     <AgendaClient
-      agoraInicialIso={agora.toISOString()}
       fusoDeApresentacao={fusoDeApresentacao}
       googleConfigurado={googleConfigurado}
       contaConectada={conexoes?.map(c => c.account_email).join(", ") || null}

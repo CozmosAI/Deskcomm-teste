@@ -3,7 +3,16 @@ import { requireSupportWrite } from "@/lib/impersonate/support";
  * POST /api/v1/ai/agents/:id/versions/:vid/test (admin)
  *
  * Spec 10 §4.4. Cria ai_agent_runs com is_dry_run=true e executa o runtime
- * real (S-13.08) via `callInternalRuntime` → `runAgent`. Esse é o default.
+ * real. ⚠️ Não é mais `callInternalRuntime` → `runAgent`, como esta linha
+ * afirmou por vários releases: aquele runtime (`lib/ai/runtime`) está aposentado
+ * desde a Fase 0 — o cron `agent-dispatcher` responde `deprecated: true`. Quem
+ * roda hoje é `testAgentVersion` (`lib/agent-engine/agent/sandbox.ts`), o mesmo
+ * motor do turno de WhatsApp, em modo prévia. Para conferir sem acreditar nesta
+ * linha, leia a chamada mais abaixo.
+ *
+ * ⚠️ Esta rota é o ÚNICO escritor vivo de `ai_agent_runs`. O caminho normal
+ * (WhatsApp) não abre linha nenhuma ali — ele registra em `llm_calls`. Quem
+ * procurar o turno real nesta tabela não acha, e não é defeito desta rota.
  *
  * INTERNAL_AGENT_RUN_STUB=true troca a execução por um trace fabricado —
  * serve para exercitar o render da UI sem gastar token, e NÃO é o default:
@@ -200,6 +209,11 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       payload: {
         status: "completed",
         completed_at: new Date().toISOString(),
+        latency_ms: Date.now() - startedAt.getTime(),
+        // `steps_count`, `tokens_in`, `tokens_out` e `cost_cents` seguem em zero
+        // de propósito: o turno de prévia não devolve essas contagens à rota, e
+        // gravar `candidates.length` no lugar de passos seria um número errado
+        // com cara de certo. Quem tem o dado é `llm_calls` (`purpose='agent_preview'`).
         tool_calls: JSON.parse(JSON.stringify(result.proposals)),
       },
     });
@@ -209,6 +223,10 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       });
     }
   } catch (err) {
+    // O `catch` loga com fingerprint (não expõe PII/segredo) e persiste a
+    // mensagem crua em `error_message` — quem for diagnosticar pela linha do
+    // run (ou pela UI de /app/ai/runs) enxerga a causa real.
+    const mensagem = err instanceof Error ? err.message : String(err);
     const diagnostico = normalizarErro(err);
     logger.error("ai agent preview failed", {
       request_id: requestId,
@@ -231,7 +249,9 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<Response> {
       payload: {
         status: "failed",
         completed_at: new Date().toISOString(),
+        latency_ms: Date.now() - startedAt.getTime(),
         error_code: "preview_failed",
+        error_message: mensagem.slice(0, 2000),
       },
     });
     if (!terminalizado) {
