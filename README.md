@@ -1,8 +1,6 @@
 # Task CRM
 
-**Versão própria do DeskcommCRM (WhatsApp + IA + multi-tenant).**
-
-Atualizações do produto TASK — apenas uso interno da Cozmos — não se aplica a outras instalações.
+**CRM com WhatsApp + IA + multi-tenant para vendas.**
 
 ## Rodando
 
@@ -15,10 +13,10 @@ pnpm dev
 
 ## Deploy
 
-Produção: `https://task-crm-v2.onrender.com` (Render — projeto old: `deskcomm-teste`)
+Produção: `https://task-crm-v2.onrender.com` (Render)
 
-## Notas do fork
+## Sobre
 
 - Marca do produto: **Task CRM**
-- Cores: azul `#1447e6` (nunca verde `#506d48`)
-- Baseado em: DeskcommCRM v1.23.0 (upstream: `melgarafael/DeskcommCRM`)
+- Cores: azul `#1447e6`
+- Suporte: `cozmos.atendimento@gmail.com`
