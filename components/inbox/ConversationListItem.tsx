@@ -141,7 +141,13 @@ export function ConversationListItem({
   const preview = imagem
     ? `${t("Imagem")}${ultima.body?.trim() ? `: ${ultima.body.trim()}` : ""}`
     : previewEhTokenDeMidia
-      ? t("Mídia") // "[video]", "[audio]", "[imagem]", etc. viram "Mídia"
+      ? previewLower.startsWith("[video]") 
+        ? t("Vídeo")
+        : previewLower.startsWith("[audio]") || previewLower.startsWith("[ptt]") || previewLower.startsWith("[voice]")
+          ? t("Áudio")
+          : previewLower.startsWith("[imagem]") || previewLower.startsWith("[figura]")
+            ? t("Imagem")
+            : t("Mídia")
       : conversation.last_message_preview?.trim() || t("Sem mensagens");
   const truncated = preview.length > 60 ? `${preview.slice(0, 60)}…` : preview;
   const time = relativeTime(conversation.last_message_at, localeDaData);

@@ -64,7 +64,7 @@ export function SimboloDoProduto({ nome, className, decorativo = false }: Props)
         role={decorativo ? undefined : "img"}
         aria-label={decorativo ? undefined : nome}
         aria-hidden={decorativo}
-        className={cn("flex items-center justify-center font-bold text-2xl leading-none shrink-0", className)}
+        className={cn("inline-flex items-center justify-center font-bold leading-none shrink-0 w-full h-full", className)}
       >
         <span className="text-[#1447e6] dark:text-[#5b8cff]">T</span>
       </span>
