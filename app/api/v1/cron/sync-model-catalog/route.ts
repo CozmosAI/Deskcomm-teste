@@ -43,6 +43,12 @@ import {
   type ModeloDaOpenRouter,
 } from "@/lib/ai/catalogo/openrouter";
 import {
+  FONTE_GEMINI,
+  buscarCatalogoGemini,
+  traduzirCatalogoGemini,
+  type ModeloDoGemini,
+} from "@/lib/ai/catalogo/gemini";
+import {
   CatalogoSuspeitoError,
   planejarSincronizacao,
   type ModeloExistente,
@@ -113,6 +119,51 @@ export async function sincronizarCatalogo(
   };
 }
 
+/** Sincroniza o catálogo do Gemini (mesma regra, fonte diferente). */
+export async function sincronizarCatalogoGemini(
+  admin: ReturnType<typeof createAdminClient>,
+  modelos: ModeloDoGemini[],
+): Promise<ResultadoDaSincronizacao> {
+  const daOrigem = traduzirCatalogoGemini(modelos);
+
+  const { data: existentes, error: erroLeitura } = await admin
+    .from("ai_models")
+    .select("model_id, deprecated_at")
+    .eq("source", FONTE_GEMINI);
+  if (erroLeitura) throw new Error(`catalogo_gemini_leitura_falhou: ${erroLeitura.message}`);
+
+  // Reutiliza a mesma lógica de planejamento, adaptando o tipo
+  const { planejarSincronizacaoGemini } = await import("@/lib/ai/catalogo/sincronizar");
+  const plano = planejarSincronizacaoGemini(daOrigem, (existentes ?? []) as ModeloExistente[]);
+
+  const agora = new Date().toISOString();
+
+  if (plano.paraGravar.length > 0) {
+    const { error } = await admin.from("ai_models").upsert(
+      plano.paraGravar.map((l) => ({ ...l, synced_at: agora, deprecated_at: null })),
+      { onConflict: "provider,model_id" },
+    );
+    if (error) throw new Error(`catalogo_gemini_upsert_falhou: ${error.message}`);
+  }
+
+  if (plano.paraDepreciar.length > 0) {
+    const { error } = await admin
+      .from("ai_models")
+      .update({ deprecated_at: agora })
+      .eq("source", FONTE_GEMINI)
+      .in("model_id", plano.paraDepreciar);
+    if (error) throw new Error(`catalogo_gemini_depreciacao_falhou: ${error.message}`);
+  }
+
+  return {
+    fonte: FONTE_GEMINI,
+    recebidos: daOrigem.length,
+    gravados: plano.paraGravar.length,
+    depreciados: plano.paraDepreciar.length,
+    ressuscitados: plano.paraRessuscitar.length,
+  };
+}
+
 async function buscarDaOpenRouter(): Promise<ModeloDaOpenRouter[]> {
   const res = await fetch(ENDPOINT_DO_CATALOGO, {
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -138,9 +189,34 @@ async function handler(req: NextRequest): Promise<Response> {
     return fail("unauthorized", "cron secret ausente ou inválido", 401, { requestId });
   }
   try {
-    const resultado = await sincronizarCatalogo(createAdminClient(), buscarDaOpenRouter);
-    logger.info("[sync-model-catalog] concluído", { ...resultado, request_id: requestId });
-    return ok(resultado, { requestId });
+    const admin = createAdminClient();
+    // OpenRouter: sempre sincroniza
+    const resultadoOpenRouter = await sincronizarCatalogo(admin, buscarDaOpenRouter);
+    logger.info("[sync-model-catalog] openrouter concluído", { ...resultadoOpenRouter, request_id: requestId });
+
+    // Gemini: só se tiver a chave da API configurada
+    const geminiKey = env.GEMINI_API_KEY?.trim();
+    let resultadoGemini: ResultadoDaSincronizacao | null = null;
+    if (geminiKey) {
+      try {
+        const modelosGemini = await buscarCatalogoGemini(geminiKey);
+        resultadoGemini = await sincronizarCatalogoGemini(admin, modelosGemini);
+        logger.info("[sync-model-catalog] gemini concluído", { ...resultadoGemini, request_id: requestId });
+      } catch (err) {
+        // Não quebra o sync da OpenRouter se o Gemini falhar
+        logger.warn("[sync-model-catalog] gemini falhou, continuando sem ele", {
+          error: err instanceof Error ? err.message : String(err),
+          request_id: requestId,
+        });
+      }
+    } else {
+      logger.info("[sync-model-catalog] gemini pulado (GEMINI_API_KEY não configurada)", { request_id: requestId });
+    }
+
+    return ok({
+      openrouter: resultadoOpenRouter,
+      gemini: resultadoGemini,
+    }, { requestId });
   } catch (err) {
     if (err instanceof CatalogoSuspeitoError) {
       // Não é erro do servidor: a origem respondeu, e nós recusamos. 200 com o

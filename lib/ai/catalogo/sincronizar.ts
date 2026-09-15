@@ -29,6 +29,7 @@
  * banco de pé — que é como se chega a "testo depois".
  */
 import type { LinhaDeCatalogo } from "./openrouter";
+import type { LinhaDeCatalogoGemini } from "./gemini";
 
 /** O que o banco já tem, para a fonte desta execução. */
 export interface ModeloExistente {
@@ -93,4 +94,27 @@ export function planejarSincronizacao(
     .map((m) => m.model_id);
 
   return { paraGravar: [...daOrigem], paraDepreciar, paraRessuscitar };
+}
+
+/** Sincroniza o catálogo do Gemini (mesma regra, fonte diferente). */
+export function planejarSincronizacaoGemini(
+  daOrigem: readonly LinhaDeCatalogoGemini[],
+  noBanco: readonly ModeloExistente[],
+): PlanoDeSincronizacao {
+  // Reutiliza a mesma lógica, adaptando o tipo
+  return planejarSincronizacao(
+    daOrigem.map((l) => ({
+      provider: l.provider,
+      model_id: l.model_id,
+      display_name: l.display_name,
+      description: l.description,
+      context_window: l.context_window,
+      input_price_per_million_cents: l.input_price_per_million_cents,
+      output_price_per_million_cents: l.output_price_per_million_cents,
+      supports_tools: l.supports_tools,
+      supports_vision: l.supports_vision,
+      source: l.source,
+    })),
+    noBanco,
+  );
 }

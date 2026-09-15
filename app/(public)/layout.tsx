@@ -87,7 +87,6 @@ export default async function PublicLayout({ children }: { children: React.React
               </div>
             </div>
           ) : marcaEhADoProduto({ name: marca.nome, logoUrl: null }) ? (
-            {/* Task CRM: logo tipografico simples, sem o "D" herdado do Deskcomm */}
             <div className="flex justify-center">
               <span className="text-3xl font-bold text-[#1447e6]">Task CRM</span>
             </div>
