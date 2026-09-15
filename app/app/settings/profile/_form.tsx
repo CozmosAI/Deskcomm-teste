@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -51,6 +52,7 @@ export function ProfileForm({
   const [timezone, setTimezone] = useState(initialTimezone);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl ?? "");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +68,11 @@ export function ProfileForm({
     }
     startTransition(async () => {
       const r = await updateProfile(parsed.data);
-      if (r.ok) toast.success(t("Perfil atualizado."));
+      if (r.ok) {
+        toast.success(t("Perfil atualizado."));
+        // Redireciona pro dashboard depois de salvar — o usuário não fica preso na tela
+        router.push("/app/inbox");
+      }
       else toast.error(`${t("Erro")}: ${r.error}`);
     });
   }
