@@ -131,12 +131,18 @@ export function ConversationListItem({
   const ultima = conversation.latest_message?.[0];
   // O token sozinho também pode ser texto legítimo. Só rotular com o tipo real,
   // e quando o carimbo corresponde: não ressuscitar mídia antiga após redact.
+  const previewLower = (ultima?.body ?? "").toLowerCase().trim();
+  // O WhatsApp grava "[video]" ou "[audio]" no corpo para mídia sem transcricao.
+  // Ignora isso e marca como imagem SE houver arquivo E o preview for um token.
+  const previewEhTokenDeMidia = /^\[(video|audio|imagem|documento|figura)/.test(previewLower);
   const imagem = ultima?.type === "image" && !ultima.revoked_at &&
     !!conversation.last_message_at &&
     Date.parse(ultima.sent_at) === Date.parse(conversation.last_message_at);
   const preview = imagem
     ? `${t("Imagem")}${ultima.body?.trim() ? `: ${ultima.body.trim()}` : ""}`
-    : conversation.last_message_preview?.trim() || t("Sem mensagens");
+    : previewEhTokenDeMidia
+      ? t("Mídia") // "[video]", "[audio]", "[imagem]", etc. viram "Mídia"
+      : conversation.last_message_preview?.trim() || t("Sem mensagens");
   const truncated = preview.length > 60 ? `${preview.slice(0, 60)}…` : preview;
   const time = relativeTime(conversation.last_message_at, localeDaData);
   const unread = conversation.unread_count_for_assignee ?? 0;
